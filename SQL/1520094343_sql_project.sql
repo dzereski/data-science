@@ -167,7 +167,7 @@ ORDER BY monthlymaintenance DESC;
 /* Q6: You'd like to get the first and last name of the last member(s)
 who signed up. Do not use the LIMIT clause for your solution. */
 
-SELECT memid, firstname, surname FROM members WHERE joindate = (SELECT MAX(joindate) FROM members);
+SELECT memid, firstname, surname FROM members WHERE memid = (SELECT MAX(memid) FROM members);
 
 /*
 +-------+-----------+---------+
