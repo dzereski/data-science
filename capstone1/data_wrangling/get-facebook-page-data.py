@@ -1,10 +1,46 @@
+"""
+get-facebook-page-data
+~~~~~~~~~~~~~~~~
+Gather data on a single page metric from Facebook's Graph API
+from START_DATE through yesterday.
+"""
+
 import os
-import datetime
 
 import requests
+import pendulum
 from openpyxl import Workbook
 
-from wrangletools import (get_unix_time, writexlrow, get_data_path)
+from wrangletools import (writexlrow, get_data_path)
+
+
+def time_window_range(start_date):
+    """Generator function to iterate through 60-day windows from
+    the start date to yesterday. According to the docs, 90 days
+    is the max range in since/until.
+    """
+
+    DAY_WINDOW_SIZE = 60
+
+    start_dt = pendulum.parse(start_date)
+    end_dt = pendulum.today()
+
+    day_range = end_dt.diff(start_dt).in_days()
+    windows_in_range = day_range // DAY_WINDOW_SIZE
+    extra_days = day_range % DAY_WINDOW_SIZE
+
+    # Since/Until works like range in Python in that the end
+    # data is not included. Add one more day to get the full range
+    for n in range(windows_in_range):
+        since_dt = start_dt.add(days=(n * DAY_WINDOW_SIZE))
+        until_dt = since_dt.add(days=DAY_WINDOW_SIZE + 1)
+
+        yield since_dt, until_dt
+
+    if extra_days > 0:
+        since_dt = until_dt.subtract(days=1)
+        until_dt = since_dt.add(days=extra_days + 1)
+        yield since_dt, until_dt
 
 
 def main():
@@ -23,14 +59,6 @@ def main():
     METRIC = 'page_impressions_organic_unique'
     START_DATE = '2016-06-01'
 
-    # datetimes used to iterate through the FB data. Pull 4 weeks at a time
-    # using since/until API params
-    end_dt = datetime.datetime.now()
-    start_dt = datetime.datetime.strptime(START_DATE, '%Y-%m-%d')
-    four_weeks = datetime.timedelta(weeks=4)
-    one_day = datetime.timedelta(days=1)
-    until_dt = start_dt + four_weeks
-
     # Create the Excel workbook to store data and write the header
     wb = Workbook()
     ws = wb.active
@@ -40,29 +68,25 @@ def main():
 
     # Iterate through days from START_DATE and call FB's Graph API to pull
     # the requested page metric
-    while start_dt < end_dt:
-        print('Fetching {} - {}'.format(start_dt, until_dt))
+    for (start, end) in time_window_range(START_DATE):
+        print('Fetching {} - {}'.format(start.date(), end.date()))
 
-        url = 'https://graph.facebook.com/{}/insights/{}?period=day&since={}&until={}'.format(PAGE_ID, METRIC, get_unix_time(start_dt), get_unix_time(until_dt))
+        url = 'https://graph.facebook.com/{}/insights/{}?period=day&since={}&until={}'.format(PAGE_ID, METRIC, start.int_timestamp, end.int_timestamp)
 
         r = requests.get(url, headers=fb_headers)
         if r.status_code != requests.codes.ok:
-            raise RuntimeError(r.text)
+            raise RuntimeError(r.status_code, r.text)
 
         # Iterate through the days of data returned and save as an Excel row
         data = r.json()['data'][0]
 
         for item in data['values']:
-            (fb_date, fb_time) = item['end_time'].split('T')
-            fb_dt = datetime.datetime.strptime(fb_date, '%Y-%m-%d')
-            date_str = str(fb_dt - one_day).split(' ')[0]
-
+            # Note that the end_time returned when using since/until is advanced
+            # by 1 day to reflect the metric of the since date.  Subtract a day
+            # to make the days line up properly.
+            utc_fb_dt = pendulum.parse(item['end_time'])
+            date_str = utc_fb_dt.subtract(days=1).to_date_string()
             row = writexlrow(ws, row, [date_str, item['value']])
-
-        # The data returned is basically advanced one day to include the 'since' date.
-        # Rewind by a date to accomodate this and advance to the next 4-week period.
-        start_dt = until_dt - one_day
-        until_dt = start_dt + four_weeks
 
     wb.save(get_data_path('fb-{}.xlsx'.format(METRIC)))
 
