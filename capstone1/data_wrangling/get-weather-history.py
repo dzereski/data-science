@@ -1,11 +1,18 @@
+"""
+get-weather-history
+~~~~~~~~~~~~~~~~
+Get weather observations for the store's location from a given
+START_DATE through yesterday using the Dark Sky API
+"""
+
 import os
 import time
-import datetime
 
 import requests
+import pendulum
 from openpyxl import Workbook
 
-from wrangletools import (get_unix_time, writexlrow, get_data_path)
+from wrangletools import (writexlrow, get_data_path)
 
 
 def main():
@@ -20,11 +27,6 @@ def main():
     # API credentials are stored as env vars
     api_key = os.environ.get('WX_KEY')
 
-    # datetimes used to iterate through days to acquire WX data
-    end_dt = datetime.datetime.now()
-    one_day = datetime.timedelta(days=1)
-    wx_dt = datetime.datetime.strptime(START_DATE, '%Y-%m-%d')
-
     # Create the Excel workbook to store data and write the header
     wb = Workbook()
     ws = wb.active
@@ -34,25 +36,26 @@ def main():
 
     # Iterate through days from START_DATE and pull hourly WX observations
     # from Dark Sky for that day
-    while wx_dt < end_dt:
-        print('Fetching WX for {}'.format(wx_dt.date()))
-        unix_time = get_unix_time(wx_dt)
-        url = 'https://api.darksky.net/forecast/{}/{},{},{}?exclude=daily,currently,flags'.format(api_key, LAT, LON, unix_time)
+    start = pendulum.parse(START_DATE)
+    end = pendulum.yesterday()
+
+    for day in pendulum.period(start, end).range('days'):
+        print('Fetching WX for {}'.format(day.to_date_string()))
+        url = 'https://api.darksky.net/forecast/{}/{},{},{}?exclude=daily,currently,flags'.format(api_key, LAT, LON, day.int_timestamp)
 
         r = requests.get(url)
         if r.status_code != requests.codes.ok:
-            raise RuntimeError(r.text)
+            raise RuntimeError(r.status_code, r.text)
 
         data = r.json()
 
         # Extract each hourly observation and save to the Excel workbook
         for obs in data['hourly']['data']:
-            dt = datetime.datetime.fromtimestamp(obs['time'])
-            time_str = dt.strftime('%Y-%m-%d %H:%M%S')
+            obs_time = pendulum.from_timestamp(obs['time'])
             row = writexlrow(
                 ws,
                 row,
-                [time_str,
+                [obs_time.to_datetime_string(),
                  obs['summary'],
                  obs['icon'],
                  obs['temperature'],
@@ -60,9 +63,7 @@ def main():
                  obs.get('precipType', None),
                  obs['precipIntensity']])
 
-        # Advance to the next day and take a short nap to avoid API
-        # throttling issues
-        wx_dt += one_day
+        # Take a short nap to avoid API throttling issues
         time.sleep(0.2)
 
     # Save the Excel workbook in the data dir for this project

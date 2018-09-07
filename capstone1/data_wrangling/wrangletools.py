@@ -1,15 +1,14 @@
-import time
-import datetime
-
-
-def get_unix_time(date_obj):
-    dt = datetime.datetime.combine(date_obj, datetime.time.min)
-    unix_time = int(time.mktime(dt.timetuple()))
-
-    return unix_time
+"""
+wrangletools
+~~~~~~~~~~~~~~~~
+A collection of utility functions used across data gathering modules
+"""
 
 
 def writexlrow(ws, row, values, font=None):
+    """Write a row of data to an Excel workbook and apply
+    the given font
+    """
     for col, name in enumerate(values):
         ws.cell(column=col + 1, row=row).value = name
         if font is not None:
@@ -18,5 +17,7 @@ def writexlrow(ws, row, values, font=None):
 
 
 def get_data_path(fname):
+    """Return the path to a given data file name.
+    """
     DATA_DIR = '../data/'
     return DATA_DIR + fname

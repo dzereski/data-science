@@ -1,9 +1,14 @@
+"""
+get-sales-history
+~~~~~~~~~~~~~~~~
+Gather store sales data from Square using the Connect V1 API.
+"""
+
 import os
 import json
-import datetime
-import dateutil
 from collections import OrderedDict
 
+import pendulum
 from openpyxl import Workbook
 
 from wrangletools import (writexlrow, get_data_path)
@@ -12,9 +17,10 @@ import requests
 
 
 def sqv1_api_call(endpoint_path):
-    ''' Generator function for calls to the Square V1 API.
-        Call the requested API endpoint, return each item in the JSON
-        result and paginate through all results.'''
+    """Generator function for calls to the Square V1 API.
+    Call the requested API endpoint, return each item in the JSON
+    result and paginate through all results.
+    """
 
     more_results = True
     next_page_url = endpoint_path
@@ -51,12 +57,12 @@ def sqv1_api_call(endpoint_path):
 
 def main():
 
-    # Get Square sales since opening
+    # Get Square sales since opening (and data available in Square)
     START_DATE = '2017-11-17'
 
     # Local timezone. Will need this to converte UTC sales dates
     # returned from Square's API to local time
-    local_zone = dateutil.tz.tzlocal()
+    local_zone = pendulum.today().timezone_name
 
     print('Getting sales since {} from Square'.format(START_DATE))
 
@@ -69,11 +75,11 @@ def main():
 
     for t in sqv1_api_call(endpoint_path):
         # Convert from UTC dates returned by the API to local
-        utc_sale_dt = dateutil.parser.parse(t['created_at'])
-        local_dt = utc_sale_dt.astimezone(local_zone)
-        sale_date_str = local_dt.date().isoformat()
+        utc_sale_dt = pendulum.parse(t['created_at'])
+        local_dt = utc_sale_dt.in_tz(local_zone)
+        sale_date_str = local_dt.to_date_string()
 
-        amount = t['net_sales_money']['amount'] / 100.0
+        amount = t['gross_sales_money']['amount'] / 100.0
         sales_by_day[sale_date_str] = sales_by_day.get(sale_date_str, 0.0) + amount
         # print(json.dumps(t, indent=4, sort_keys=True))
 
@@ -88,24 +94,17 @@ def main():
     # This approach will write 0.0 on days where the business is not open and
     # Square has no data.  This will capture zero sale days on Sundays, holidays,
     # snow days, etc.
-    end_dt = datetime.datetime.now()
-    one_day = datetime.timedelta(days=1)
-    sale_dt = dateutil.parser.parse(START_DATE)
+    start = pendulum.parse(START_DATE)
+    end = pendulum.today()
 
-    while sale_dt < end_dt:
-        # Parse out the year, week number and day number (1-7) from
-        # the date string.  These will be used later in feature engineering
-        date = sale_dt.date().isoformat()
-        (iso_year, iso_week, iso_day) = sale_dt.isocalendar()
-        month = sale_dt.month
-
-        if date in sales_by_day:
-            sales = sales_by_day[date]
+    for day in pendulum.period(start, end).range('days'):
+        date_str = day.to_date_string()
+        if date_str in sales_by_day:
+            sales = sales_by_day[date_str]
         else:
             sales = 0.0
 
-        row = writexlrow(ws, row, [date, iso_year, month, iso_week, iso_day, sales])
-        sale_dt += one_day
+        row = writexlrow(ws, row, [date_str, day.year, day.month, day.week_of_year, day.day_of_week, sales])
 
     wb.save(get_data_path('daily-sales.xlsx'))
 
