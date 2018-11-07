@@ -18,7 +18,7 @@ from wrangletools import (writexlrow, get_data_path)
 def main():
 
     # First day of store sales data
-    START_DATE = '2016-06-01'
+    START_DATE = '2017-11-17'
 
     # Store lat/lon
     LAT = 42.359153
@@ -67,7 +67,7 @@ def main():
         time.sleep(0.2)
 
     # Save the Excel workbook in the data dir for this project
-    wb.save(get_data_path('daily-weather.xlsx'))
+    wb.save(get_data_path('hourly-weather.xlsx'))
 
 
 if __name__ == '__main__':
