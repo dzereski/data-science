@@ -11,64 +11,12 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 
+from walksplit import TimeSeriesWalkSplit
 from lag_transformer import LagTransformer
 
 _DAYS_IN_WEEK = 7
 _MIN_TRAIN_SIZE = _DAYS_IN_WEEK * 16
 _NA_VAL = 0.0
-
-
-class TimeSeriesFixedTestSplit:
-    """A drop-in replacement for TimeSeriesSplit in scikit-learn that
-    allows you to specify a fixed test window and a minimum training
-    data size.
-
-    Parameters
-    ----------
-    data_len: length of the time series to split
-    n_splits: Optional - number of splits to generate. less than
-        calculated value.
-    min_train_size: minimum size of the training set
-    test_size: a fixed size for the test set that will be maintained
-        for each iteration.
-
-    Returns
-    -------
-    Train/test indices to split time series samples.
-
-    Notes
-    -----
-    - Start at the beginning, first index returned is 0
-    - initial size of the training set is min_train_size, indices 0 - min_train_size-1
-    - initial size of the test set is test_size, indices min_train_size, min_train_size + test_size
-    - increment the size of the training set by test_size at each iteration
-    - test_size remains constant. handy if you're always predicting the next day or next week.
-    """
-
-    def __init__(self, data_len, n_splits=None, min_train_size=_MIN_TRAIN_SIZE, test_size=_DAYS_IN_WEEK):
-        self.test_size = test_size
-        self.min_train_size = min_train_size
-        self.data_len = data_len
-
-        self.start_idx = self.min_train_size
-        self.total_steps = (self.data_len - self.start_idx) // self.test_size
-
-        if n_splits is None:
-            self.start_step = 0
-            self.steps = self.total_steps
-        else:
-            self.start_step = self.total_steps - n_splits
-            self.steps = n_splits
-
-    def get_n_splits(self, X=None, y=None, groups=None):
-        return self.steps
-
-    def split(self, X, y=None, groups=None):
-        for n in range(self.start_step, self.total_steps):
-            test_start_idx = self.start_idx + (n * self.test_size)
-            test_end_idx = test_start_idx + self.test_size
-
-            yield (np.arange(test_start_idx), np.arange(test_start_idx, test_end_idx))
 
 
 def get_first_sunday(df, test_size=_DAYS_IN_WEEK):
@@ -86,6 +34,10 @@ def get_first_sunday(df, test_size=_DAYS_IN_WEEK):
         start_idx = 0
 
     return start_idx
+
+
+def get_default_train_test_size():
+    return _MIN_TRAIN_SIZE, _DAYS_IN_WEEK
 
 
 def root_mean_squared_error(y_true, y_pred):
@@ -114,11 +66,11 @@ def walk_forward_validate(model, df_in, test_size=_DAYS_IN_WEEK):
     corresponding to the input, df_in
     """
 
-    tscv = TimeSeriesFixedTestSplit(len(df_in.index))
+    tscv = TimeSeriesWalkSplit(_DAYS_IN_WEEK, train_size=_MIN_TRAIN_SIZE)
     X = df_in.drop('y', axis='columns')
     y = df_in[['y']].values.ravel()
 
-    df_pred = df_in[['y']][tscv.min_train_size:]
+    df_pred = df_in[['y']][_MIN_TRAIN_SIZE:]
     df_pred['yhat'] = np.NaN
     df_pred['error'] = np.NaN
     y_idx = 0
@@ -232,15 +184,6 @@ def main(args):
     df_metrics = calc_metrics(df_pred)
 
     print(df_metrics.tail(12))
-
-    # X = df.drop('y', axis='columns')
-
-    # tscv = TimeSeriesFixedTestSplit(len(X.index))
-
-    # for (train_index, test_index) in tscv.split(X):
-    #    print(train_index)
-    #    print(test_index)
-    #    print('-' * 20)
 
 
 if __name__ == '__main__':
