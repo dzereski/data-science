@@ -62,4 +62,8 @@ The above results were generated using walk forward testing of the models. The w
 
 ### Next Steps:
 
+* Accumulate more data! The store has barely a year's worth of detailed sales data in Square. Data from prior years is all on paper and not worth the effort of digitizing.
+
+* Ensemble of *Expert* Models. Models like ElasticNet do reasonably well at predicting "normal" weeks. They do not perform as well with sale events. Sales are relatively rare with only a handful per year. The timing is known in advance but the magnitude in terms of foot traffic and sales has been difficult to predict. In a future project, I'll try generating a special "sale event" model that uses additional data like number of people responding to a Facebook Event. This "sale event" expert model output will be combined with the normal weekly model to produce an overall forecast.
+
 
