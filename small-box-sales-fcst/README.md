@@ -48,6 +48,7 @@ Try Prophet on this small data set. It did what it was designed to do in deliver
 ### Summary of Results:
 
 | Model             | RMSE   | MAPE   |
+| ----------------- | ------ | ------ |
 | Baseline          | 596.27 | 25.37% |
 | Linear Regression | 453.54 | 20.64% |
 | Ridge (alpha=0.1) | 453.82 | 20.33% |
