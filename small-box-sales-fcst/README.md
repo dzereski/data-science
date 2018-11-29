@@ -47,4 +47,18 @@ Try Prophet on this small data set. It did what it was designed to do in deliver
 
 ### Summary of Results:
 
+| Model             | RMSE   | MAPE   |
+| Baseline          | 596.27 | 25.37% |
+| Linear Regression | 453.54 | 20.64% |
+| Ridge (alpha=0.1) | 453.82 | 20.33% |
+| Lasso (alpha=0.1) | 453.70 | 20.56% |
+| ElasticNet        | 452.84 | 19.66% |
+| XGBoost           | 461.37 | 19.51% |
+| SARIMA            | N/A    | N/A    |
+| Facebook Prophet  | 572.01 | 36.57% |
+
+The above results were generated using walk forward testing of the models. The walk started with a minimum training set (about 4 months of data). For each step, the model is trained, 7 days are forecasted and compared against actual sales using the above metrics. The training set is then expanded by a week and a new weekly forecast is generated. This process was repeated for about 30 steps to give a good overall sense of model performance. The values above are the average over all steps.
+
+### Next Steps:
+
 
