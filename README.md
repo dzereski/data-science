@@ -18,4 +18,4 @@ Gradient descent is how you minimize cost functions in everything from linear re
 
 [Fun and Learning](./fun-and-learning)
 
-A large and growing collection (mostly Jupyter Notebooks) with fun exercies, labs and mini-projects from sources like Harvard's CS109 online class, etc. Notebooks on everyting from data wrangling, SQL, EDA, hacker statistics, classification, regression and unsupervised learning are here.
+A large and growing collection (mostly Jupyter Notebooks) with fun exercises, labs and mini-projects from sources like Harvard's CS109 online class, etc. Notebooks on everyting from data wrangling, SQL, EDA, hacker statistics, classification, regression and unsupervised learning are here.
